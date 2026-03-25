@@ -262,7 +262,7 @@ export function updateStatusBar(state: McpExtensionState): void {
   if (!ui) return;
   const total = Object.keys(state.config.mcpServers).length;
   if (total === 0) {
-    ui.setStatus("mcp", "");
+    ui.setStatus("mcp", undefined);
     return;
   }
   const connectedCount = state.manager.getAllConnections().size;
