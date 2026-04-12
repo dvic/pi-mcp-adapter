@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.4] - 2026-04-12
+
+### Fixed
+- OAuth callback handling now allows dynamic-registration flows to fall back to a free local port when the preferred callback port is busy, while keeping pre-registered clients on their exact configured redirect port.
+- Documented the new callback-port behavior and added focused auth-flow regression coverage.
+
 ## [2.3.3] - 2026-04-12
 
 ### Fixed

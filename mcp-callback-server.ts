@@ -6,8 +6,12 @@
  */
 
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "http"
-import { connect } from "net"
-import { OAUTH_CALLBACK_PORT, OAUTH_CALLBACK_PATH } from "./mcp-oauth-provider.js"
+import {
+  OAUTH_CALLBACK_PATH,
+  getConfiguredOAuthCallbackPort,
+  getOAuthCallbackPort,
+  setOAuthCallbackPort,
+} from "./mcp-oauth-provider.js"
 
 // HTML templates for callback responses
 const HTML_SUCCESS = `<!DOCTYPE html>
@@ -65,29 +69,10 @@ const pendingAuths = new Map<string, PendingAuth>()
 /** Timeout for callback completion (5 minutes) */
 const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000
 
-/**
- * Check if the callback port is already in use.
- * Used to detect if another instance is running the server.
- */
-async function isPortInUse(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = connect({ host: "127.0.0.1", port: OAUTH_CALLBACK_PORT })
-    socket.setTimeout(1000)
+const MAX_PORT_SCAN_ATTEMPTS = 25
 
-    socket.on("connect", () => {
-      socket.end()
-      resolve(true)
-    })
-
-    socket.on("error", () => {
-      resolve(false)
-    })
-
-    socket.on("timeout", () => {
-      socket.destroy()
-      resolve(false)
-    })
-  })
+interface EnsureCallbackServerOptions {
+  strictPort?: boolean
 }
 
 /**
@@ -160,27 +145,68 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 
 /**
  * Ensure the callback server is running.
- * If the port is in use by another process, fail fast with a clear error.
+ * If strictPort is true, requires binding on the configured callback port.
+ * If strictPort is false, scans forward for an available local port.
  */
-export async function ensureCallbackServer(): Promise<void> {
-  if (server) return
+export async function ensureCallbackServer(options: EnsureCallbackServerOptions = {}): Promise<void> {
+  const configuredPort = getConfiguredOAuthCallbackPort()
+  const strictPort = options.strictPort === true
 
-  const running = await isPortInUse()
-  if (running) {
-    throw new Error(`OAuth callback port ${OAUTH_CALLBACK_PORT} is already in use`)
+  if (server) {
+    if (!strictPort || getOAuthCallbackPort() === configuredPort) return
+
+    throw new Error(
+      `OAuth callback server is already running on port ${getOAuthCallbackPort()}, but strict callback port ${configuredPort} is required`
+    )
   }
 
-  server = createServer(handleRequest)
+  const preferredPort = configuredPort
+  const maxAttempts = strictPort ? 1 : MAX_PORT_SCAN_ATTEMPTS
+  let lastError: Error | undefined
 
-  await new Promise<void>((resolve, reject) => {
-    server!.once("error", (err) => {
-      reject(err)
-    })
+  for (let offset = 0; offset < maxAttempts; offset++) {
+    const candidatePort = preferredPort + offset
+    const candidateServer = createServer(handleRequest)
 
-    server!.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
-      resolve()
-    })
-  })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        candidateServer.once("error", (err) => {
+          reject(err)
+        })
+
+        candidateServer.listen(candidatePort, "127.0.0.1", () => {
+          resolve()
+        })
+      })
+
+      server = candidateServer
+      setOAuthCallbackPort(candidatePort)
+      return
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException
+      await new Promise<void>((resolve) => {
+        candidateServer.close(() => resolve())
+      })
+
+      if (nodeError.code !== "EADDRINUSE") {
+        throw error
+      }
+
+      lastError = error instanceof Error ? error : new Error(String(error))
+    }
+  }
+
+  if (strictPort) {
+    throw new Error(
+      `OAuth callback port ${preferredPort} is already in use. Pre-registered OAuth clients require an exact redirect URI; set MCP_OAUTH_CALLBACK_PORT to your registered port or free port ${preferredPort}`,
+      { cause: lastError }
+    )
+  }
+
+  throw new Error(
+    `OAuth callback port ${preferredPort} is already in use and no free port was found in range ${preferredPort}-${preferredPort + MAX_PORT_SCAN_ATTEMPTS - 1}`,
+    { cause: lastError }
+  )
 }
 
 /**
@@ -224,6 +250,8 @@ export async function stopCallbackServer(): Promise<void> {
     })
     server = undefined
   }
+
+  setOAuthCallbackPort(getConfiguredOAuthCallbackPort())
 
   // Reject all pending auths (defer to allow any pending operations to complete)
   const pendingList = Array.from(pendingAuths.entries())

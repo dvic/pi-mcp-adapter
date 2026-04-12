@@ -12,6 +12,7 @@ import {
   isCallbackServerRunning,
   getPendingAuthCount,
 } from "./mcp-callback-server.js"
+import { getOAuthCallbackPort } from "./mcp-oauth-provider.js"
 
 describe("mcp-callback-server", () => {
   beforeEach(async () => {
@@ -49,8 +50,9 @@ describe("mcp-callback-server", () => {
       const callbackPromise = waitForCallback(state)
 
       // Simulate callback by making HTTP request
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/mcp/oauth/callback?code=${expectedCode}&state=${state}`
+        `http://127.0.0.1:${callbackPort}/mcp/oauth/callback?code=${expectedCode}&state=${state}`
       )
 
       // Should get HTML success response
@@ -72,8 +74,9 @@ describe("mcp-callback-server", () => {
       const callbackPromise = waitForCallback(state)
 
       // Simulate error callback
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/mcp/oauth/callback?error=${errorMsg}&state=${state}`
+        `http://127.0.0.1:${callbackPort}/mcp/oauth/callback?error=${errorMsg}&state=${state}`
       )
 
       assert.strictEqual(response.status, 200)
@@ -87,8 +90,9 @@ describe("mcp-callback-server", () => {
     it("should return 400 for missing state", async () => {
       await ensureCallbackServer()
 
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/mcp/oauth/callback?code=abc123`
+        `http://127.0.0.1:${callbackPort}/mcp/oauth/callback?code=abc123`
       )
 
       assert.strictEqual(response.status, 400)
@@ -102,8 +106,9 @@ describe("mcp-callback-server", () => {
       // Register a different state
       waitForCallback("valid-state")
 
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/mcp/oauth/callback?code=abc123&state=invalid-state`
+        `http://127.0.0.1:${callbackPort}/mcp/oauth/callback?code=abc123&state=invalid-state`
       )
 
       assert.strictEqual(response.status, 400)
@@ -117,8 +122,9 @@ describe("mcp-callback-server", () => {
       const state = "test-state-no-code"
       waitForCallback(state)
 
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/mcp/oauth/callback?state=${state}`
+        `http://127.0.0.1:${callbackPort}/mcp/oauth/callback?state=${state}`
       )
 
       assert.strictEqual(response.status, 400)
@@ -129,8 +135,9 @@ describe("mcp-callback-server", () => {
     it("should return 404 for wrong path", async () => {
       await ensureCallbackServer()
 
+      const callbackPort = getOAuthCallbackPort()
       const response = await fetch(
-        `http://127.0.0.1:19876/wrong/path`
+        `http://127.0.0.1:${callbackPort}/wrong/path`
       )
 
       assert.strictEqual(response.status, 404)

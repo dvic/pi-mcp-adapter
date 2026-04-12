@@ -108,7 +108,7 @@ Run the `/mcp-auth` command with the server name:
 ```
 
 This will:
-1. Start the callback server (port 19876)
+1. Start the callback server (configured port, default `19876`)
 2. Discover OAuth endpoints automatically
 3. Register a dynamic client (if no clientId provided)
 4. Open your browser for authentication
@@ -167,13 +167,17 @@ If no `clientId` is provided, the SDK:
 1. Discovers the registration endpoint from OAuth metadata
 2. Registers a new client with:
    - `client_name`: "Pi Coding Agent"
-   - `redirect_uris`: `["http://127.0.0.1:19876/mcp/oauth/callback"]`
+   - `redirect_uris`: `["http://127.0.0.1:<active-callback-port>/mcp/oauth/callback"]`
    - `grant_types`: `["authorization_code", "refresh_token"]`
 3. Stores the registered client credentials
 
 ### Callback Server
 
-A Node.js HTTP server runs on port 19876 at path `/mcp/oauth/callback`:
+A Node.js HTTP server runs on `127.0.0.1` at path `/mcp/oauth/callback`:
+
+- Preferred callback port is `19876` (or `MCP_OAUTH_CALLBACK_PORT` if set)
+- For dynamic registration, if the preferred port is busy, the adapter scans forward for a free local port
+- For pre-registered clients (`oauth.clientId`), the adapter requires the exact configured callback port
 
 - Handles `code`, `state`, and `error` parameters
 - Displays success/error HTML pages
@@ -261,7 +265,9 @@ Some servers require pre-registered clients. Obtain a client ID from your OAuth 
 
 ### Callback server already in use
 
-If port 19876 is already in use, the adapter will use the existing server instance. This is normal if you have multiple Pi sessions.
+For dynamic registration, if the preferred callback port is busy, the adapter scans for the next available local port.
+
+For pre-registered OAuth clients (`oauth.clientId`), the callback redirect URI must match exactly. In that case, free the configured port or set `MCP_OAUTH_CALLBACK_PORT` to the registered port.
 
 ### Browser doesn't open
 

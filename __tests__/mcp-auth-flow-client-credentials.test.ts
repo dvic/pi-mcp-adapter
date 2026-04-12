@@ -78,4 +78,31 @@ describe("mcp-auth-flow client_credentials", () => {
     expect(mocks.waitForCallback).not.toHaveBeenCalled();
     expect(mocks.open).not.toHaveBeenCalled();
   });
+
+  it("enforces strict callback port for pre-registered OAuth clients", async () => {
+    const { startAuth } = await import("../mcp-auth-flow.ts");
+
+    await startAuth("svc", "https://api.example.com/mcp", {
+      url: "https://api.example.com/mcp",
+      auth: "oauth",
+      oauth: {
+        clientId: "registered-client",
+      },
+    });
+
+    expect(mocks.ensureCallbackServer).toHaveBeenCalledWith({ strictPort: true });
+    expect(mocks.open).not.toHaveBeenCalled();
+  });
+
+  it("allows callback port fallback for dynamic registration", async () => {
+    const { startAuth } = await import("../mcp-auth-flow.ts");
+
+    await startAuth("svc", "https://api.example.com/mcp", {
+      url: "https://api.example.com/mcp",
+      auth: "oauth",
+    });
+
+    expect(mocks.ensureCallbackServer).toHaveBeenCalledWith({ strictPort: false });
+    expect(mocks.open).not.toHaveBeenCalled();
+  });
 });

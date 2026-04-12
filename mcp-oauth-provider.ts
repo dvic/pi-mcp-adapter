@@ -27,8 +27,31 @@ import {
 } from "./mcp-auth.js"
 
 // Callback server configuration
-const OAUTH_CALLBACK_PORT = 19876
+const DEFAULT_OAUTH_CALLBACK_PORT = 19876
 const OAUTH_CALLBACK_PATH = "/mcp/oauth/callback"
+
+let configuredOAuthCallbackPort = DEFAULT_OAUTH_CALLBACK_PORT
+
+if (process.env.MCP_OAUTH_CALLBACK_PORT) {
+  const parsedPort = Number.parseInt(process.env.MCP_OAUTH_CALLBACK_PORT, 10)
+  if (Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+    configuredOAuthCallbackPort = parsedPort
+  }
+}
+
+let oauthCallbackPort = configuredOAuthCallbackPort
+
+export function getConfiguredOAuthCallbackPort(): number {
+  return configuredOAuthCallbackPort
+}
+
+export function getOAuthCallbackPort(): number {
+  return oauthCallbackPort
+}
+
+export function setOAuthCallbackPort(port: number): void {
+  oauthCallbackPort = port
+}
 
 /** Configuration options for OAuth */
 export interface McpOAuthConfig {
@@ -65,7 +88,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
    */
   get redirectUrl(): string | undefined {
     if (this.usesClientCredentials) return undefined
-    return `http://127.0.0.1:${OAUTH_CALLBACK_PORT}${OAUTH_CALLBACK_PATH}`
+    return `http://127.0.0.1:${getOAuthCallbackPort()}${OAUTH_CALLBACK_PATH}`
   }
 
   /**
@@ -262,4 +285,4 @@ export class McpOAuthProvider implements OAuthClientProvider {
   }
 }
 
-export { OAUTH_CALLBACK_PORT, OAUTH_CALLBACK_PATH }
+export { DEFAULT_OAUTH_CALLBACK_PORT, OAUTH_CALLBACK_PATH }
