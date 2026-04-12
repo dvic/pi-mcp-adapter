@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-04-11
+
+### Added
+- Optional `oauth.grantType: "client_credentials"` for non-interactive machine-to-machine OAuth on HTTP MCP servers.
+
+### Fixed
+- `/mcp-auth <server>` now handles `client_credentials` without browser/callback flow.
+- MCP panel status no longer marks `client_credentials` servers as auth-blocked solely because no stored user tokens exist yet.
+- OAuth auth flow now closes temporary transports consistently on success, refresh, and auth removal paths.
+- Init paths now preserve debug-level context for previously silent direct-tool bootstrap and lazy-connect failures.
+
 ## [2.3.1] - 2026-04-11
 
 ### Fixed

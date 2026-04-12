@@ -69,9 +69,33 @@ You can optionally provide a pre-registered client:
 
 - `url` - The MCP server URL (required)
 - `auth` - Set to `"oauth"` to force OAuth, `false` to disable, or omit to auto-detect
+- `oauth.grantType` - `"authorization_code"` (default, browser flow) or `"client_credentials"` (non-interactive)
 - `oauth.clientId` - Pre-registered client ID (optional, SDK tries dynamic registration if not provided)
 - `oauth.clientSecret` - Client secret for confidential clients (optional)
 - `oauth.scope` - Requested OAuth scopes (optional)
+
+### Non-Interactive `client_credentials`
+
+For machine-to-machine OAuth, configure `grantType: "client_credentials"`.
+
+```json
+{
+  "mcpServers": {
+    "my-service": {
+      "url": "https://api.example.com/mcp",
+      "auth": "oauth",
+      "oauth": {
+        "grantType": "client_credentials",
+        "clientId": "service-client-id",
+        "clientSecret": "service-client-secret",
+        "scope": "read write"
+      }
+    }
+  }
+}
+```
+
+This flow does not open a browser or use callback handling.
 
 ## Usage
 

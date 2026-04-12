@@ -85,6 +85,7 @@ Two calls instead of 26 tools cluttering the context.
 | `cwd` | Working directory |
 | `url` | HTTP endpoint (StreamableHTTP with SSE fallback) |
 | `auth` | `"bearer"` or `"oauth"` |
+| `oauth.grantType` | `"authorization_code"` (default) or `"client_credentials"` for non-interactive machine auth |
 | `bearerToken` / `bearerTokenEnv` | Token or env var name |
 | `lifecycle` | `"lazy"` (default), `"eager"`, or `"keep-alive"` |
 | `idleTimeout` | Minutes before idle disconnect (overrides global) |

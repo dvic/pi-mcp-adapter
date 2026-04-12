@@ -54,6 +54,7 @@ function extractOAuthConfig(definition: ServerEntry): McpOAuthConfig {
     return {}
   }
   return {
+    grantType: definition.oauth?.grantType,
     clientId: definition.oauth?.clientId,
     clientSecret: definition.oauth?.clientSecret,
     scope: definition.oauth?.scope,
@@ -74,6 +75,31 @@ export async function startAuth(
   serverUrl: string,
   definition?: ServerEntry
 ): Promise<{ authorizationUrl: string; transport: StreamableHTTPClientTransport }> {
+  const config = definition ? extractOAuthConfig(definition) : {}
+
+  if (config.grantType === "client_credentials") {
+    const authProvider = new McpOAuthProvider(serverName, serverUrl, config, {
+      onRedirect: async () => {
+        throw new Error("Browser redirect is not used for client_credentials flow")
+      },
+    })
+    const transport = new StreamableHTTPClientTransport(new URL(serverUrl), {
+      authProvider,
+    })
+    const client = new Client({
+      name: "pi-mcp",
+      version: "3.0.0",
+    })
+
+    try {
+      await client.connect(transport)
+      return { authorizationUrl: "", transport }
+    } finally {
+      await client.close().catch(() => {})
+      await transport.close().catch(() => {})
+    }
+  }
+
   // Start the callback server
   await ensureCallbackServer()
 
@@ -81,8 +107,6 @@ export async function startAuth(
   // The SDK will call provider.state() to read this value
   const oauthState = generateState()
   await updateOAuthState(serverName, oauthState)
-
-  const config = definition ? extractOAuthConfig(definition) : {}
 
   // Create the auth provider
   let capturedUrl: URL | undefined
@@ -107,6 +131,7 @@ export async function startAuth(
     await client.connect(transport)
     // If we get here, we're already authenticated
     await client.close().catch(() => {})
+    await transport.close().catch(() => {})
     return { authorizationUrl: "", transport }
   } catch (error) {
     if (error instanceof UnauthorizedError && capturedUrl) {
@@ -263,14 +288,15 @@ export async function getValidToken(
       const client = new Client({ name: "pi-mcp", version: "3.0.0" })
       try {
         await client.connect(transport)
-        await client.close().catch(() => {})
-        
         // Get refreshed tokens
         const refreshed = await getAuthForUrl(serverName, serverUrl)
         return refreshed?.tokens ?? null
       } catch (error) {
         console.error(`MCP Auth: Token refresh failed for ${serverName}`, { error })
         return null
+      } finally {
+        await client.close().catch(() => {})
+        await transport.close().catch(() => {})
       }
     } catch (error) {
       console.error(`MCP Auth: Token refresh failed for ${serverName}`, { error })
@@ -306,8 +332,12 @@ export async function removeAuth(serverName: string): Promise<void> {
   if (oauthState) {
     cancelPendingCallback(oauthState)
   }
+  const pendingTransport = pendingTransports.get(serverName)
+  if (pendingTransport) {
+    pendingTransports.delete(serverName)
+    await pendingTransport.close().catch(() => {})
+  }
   clearAllCredentials(serverName)
-  pendingTransports.delete(serverName)
   await clearOAuthState(serverName)
   console.log(`MCP Auth: Removed credentials for ${serverName}`)
 }

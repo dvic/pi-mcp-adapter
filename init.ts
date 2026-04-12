@@ -179,7 +179,9 @@ export async function initializeMcp(
             toolMetadata.set(name, metadata);
             updateMetadataCache(state, name);
             return { name, ok: true };
-          } catch {
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.debug(`MCP: direct-tools bootstrap failed for ${name}: ${message}`);
             return { name, ok: false };
           }
         },
@@ -312,8 +314,10 @@ export async function lazyConnect(state: McpExtensionState, serverName: string):
     updateMetadataCache(state, serverName);
     updateStatusBar(state);
     return true;
-  } catch {
+  } catch (error) {
     state.failureTracker.set(serverName, Date.now());
+    const message = error instanceof Error ? error.message : String(error);
+    logger.debug(`MCP: lazy connect failed for ${serverName}: ${message}`);
     updateStatusBar(state);
     return false;
   }

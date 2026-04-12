@@ -32,6 +32,7 @@ const OAUTH_CALLBACK_PATH = "/mcp/oauth/callback"
 
 /** Configuration options for OAuth */
 export interface McpOAuthConfig {
+  grantType?: "authorization_code" | "client_credentials"
   clientId?: string
   clientSecret?: string
   scope?: string
@@ -54,11 +55,16 @@ export class McpOAuthProvider implements OAuthClientProvider {
     private callbacks: McpOAuthCallbacks,
   ) {}
 
+  private get usesClientCredentials(): boolean {
+    return this.config.grantType === "client_credentials"
+  }
+
   /**
    * The redirect URL for OAuth callbacks.
    * This must match the redirect_uri in client metadata.
    */
-  get redirectUrl(): string {
+  get redirectUrl(): string | undefined {
+    if (this.usesClientCredentials) return undefined
     return `http://127.0.0.1:${OAUTH_CALLBACK_PORT}${OAUTH_CALLBACK_PATH}`
   }
 
@@ -67,8 +73,22 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * Describes this client to the OAuth authorization server.
    */
   get clientMetadata(): OAuthClientMetadata {
+    if (this.usesClientCredentials) {
+      return {
+        client_name: "Pi Coding Agent",
+        redirect_uris: [],
+        grant_types: ["client_credentials"],
+        token_endpoint_auth_method: this.config.clientSecret ? "client_secret_post" : "none",
+      }
+    }
+
+    const redirectUrl = this.redirectUrl
+    if (!redirectUrl) {
+      throw new Error("redirectUrl is required for authorization_code flow")
+    }
+
     return {
-      redirect_uris: [this.redirectUrl],
+      redirect_uris: [redirectUrl],
       client_name: "Pi Coding Agent",
       client_uri: "https://github.com/nicobailon/pi-mcp-adapter",
       grant_types: ["authorization_code", "refresh_token"],
@@ -159,6 +179,9 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * This opens the browser for the user to authenticate.
    */
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
+    if (this.usesClientCredentials) {
+      throw new Error("redirectToAuthorization is not used for client_credentials flow")
+    }
     // URL is passed to callback, not logged (may contain sensitive params)
     await this.callbacks.onRedirect(authorizationUrl)
   }
@@ -175,6 +198,9 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * @throws Error if no code verifier is stored
    */
   async codeVerifier(): Promise<string> {
+    if (this.usesClientCredentials) {
+      throw new Error("codeVerifier is not used for client_credentials flow")
+    }
     const entry = await getAuthEntry(this.serverName)
     if (!entry?.codeVerifier) {
       throw new Error(`No code verifier saved for MCP server: ${this.serverName}`)
@@ -194,6 +220,9 @@ export class McpOAuthProvider implements OAuthClientProvider {
    * @throws Error if no state is stored
    */
   async state(): Promise<string> {
+    if (this.usesClientCredentials) {
+      throw new Error("state is not used for client_credentials flow")
+    }
     const entry = await getAuthEntry(this.serverName)
     if (!entry?.oauthState) {
       throw new Error(`No OAuth state saved for MCP server: ${this.serverName}`)
@@ -217,6 +246,19 @@ export class McpOAuthProvider implements OAuthClientProvider {
         clearTokens(this.serverName)
         break
     }
+  }
+
+  prepareTokenRequest(scope?: string): URLSearchParams | undefined {
+    if (!this.usesClientCredentials) {
+      return undefined
+    }
+
+    const params = new URLSearchParams({ grant_type: "client_credentials" })
+    const requestedScope = scope ?? this.config.scope
+    if (requestedScope) {
+      params.set("scope", requestedScope)
+    }
+    return params
   }
 }
 

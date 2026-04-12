@@ -157,7 +157,7 @@ export async function authenticateServer(
   try {
     ctx.ui.setStatus("mcp-auth", `Authenticating ${serverName}...`);
 
-    // This opens the browser, waits for callback, and completes the flow
+    // Runs the configured OAuth flow (interactive browser or non-interactive client_credentials)
     const status = await authenticate(serverName, definition.url, definition);
 
     if (status === "authenticated") {
@@ -200,7 +200,12 @@ export async function openMcpPanel(
       if (connection?.status === "needs-auth") {
         return "needs-auth";
       }
-      if (definition?.auth === "oauth" && !hasStoredTokens(serverName)) {
+      if (
+        definition?.auth === "oauth"
+        && definition.oauth !== false
+        && definition.oauth?.grantType !== "client_credentials"
+        && !hasStoredTokens(serverName)
+      ) {
         return "needs-auth";
       }
       if (connection?.status === "connected") return "connected";

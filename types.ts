@@ -264,6 +264,8 @@ export type ContentBlock = TextContent | ImageContent;
 
 // OAuth configuration (SDK handles auto-discovery and dynamic registration)
 export interface OAuthConfig {
+  /** OAuth grant type (defaults to authorization_code) */
+  grantType?: "authorization_code" | "client_credentials";
   /** Pre-registered client ID (optional, dynamic registration used if not provided) */
   clientId?: string;
   /** Client secret for confidential clients */

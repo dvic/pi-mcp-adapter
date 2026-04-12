@@ -167,6 +167,7 @@ export class McpServerManager {
     if (supportsOAuth(definition)) {
       // Extract OAuth config (handles both object and false cases)
       const oauthConfig = definition.oauth === false ? {} : {
+        grantType: definition.oauth?.grantType,
         clientId: definition.oauth?.clientId,
         clientSecret: definition.oauth?.clientSecret,
         scope: definition.oauth?.scope,
