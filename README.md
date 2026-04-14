@@ -81,9 +81,9 @@ Two calls instead of 26 tools cluttering the context.
 |-------|-------------|
 | `command` | Executable for stdio transport |
 | `args` | Command arguments |
-| `env` | Environment variables (`${VAR}` interpolation) |
+| `env` | Environment variables (`$VAR`, `${VAR}`, `${VAR:-default}`, `$env:VAR`) |
 | `cwd` | Working directory |
-| `url` | HTTP endpoint (StreamableHTTP with SSE fallback) |
+| `url` | HTTP endpoint (`$VAR`, `${VAR}`, `${VAR:-default}`, `$env:VAR`; StreamableHTTP with SSE fallback) |
 | `auth` | `"bearer"` or `"oauth"` |
 | `oauth.grantType` | `"authorization_code"` (default) or `"client_credentials"` for non-interactive machine auth |
 | `bearerToken` / `bearerTokenEnv` | Token or env var name |
@@ -93,6 +93,8 @@ Two calls instead of 26 tools cluttering the context.
 | `directTools` | `true`, `string[]`, or `false` — register tools individually instead of through proxy |
 | `excludeTools` | `string[]` of tool names to hide (matches original names like `get_screenshot` and prefixed names like `figma_get_screenshot`) |
 | `debug` | Show server stderr (default: false) |
+
+`headers` support the same interpolation forms as `env` and `url`.
 
 ### Lifecycle Modes
 

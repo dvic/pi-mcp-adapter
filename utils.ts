@@ -61,6 +61,14 @@ export function truncateAtWord(text: string, target: number): string {
   return truncated + "...";
 }
 
+export function interpolateEnvVars(value: string): string {
+  return value
+    .replace(/\$\{(\w+):-([^}]*)\}/g, (_, name, fallback) => process.env[name] ?? fallback)
+    .replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "")
+    .replace(/\$env:(\w+)/g, (_, name) => process.env[name] ?? "")
+    .replace(/\$(\w+)/g, (_, name) => process.env[name] ?? "");
+}
+
 /**
  * Extract the adapter-owned UI stream mode from tool metadata.
  */

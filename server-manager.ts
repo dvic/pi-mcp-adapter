@@ -15,6 +15,7 @@ import { serverStreamResultPatchNotificationSchema } from "./types.js";
 import { resolveNpxBinary } from "./npx-resolver.js";
 import { logger } from "./logger.js";
 import { McpOAuthProvider } from "./mcp-oauth-provider.js";
+import { interpolateEnvVars } from "./utils.js";
 import { supportsOAuth } from "./mcp-auth-flow.js";
 
 interface ServerConnection {
@@ -145,7 +146,7 @@ export class McpServerManager {
     definition: ServerDefinition, 
     serverName: string
   ): Promise<Transport> {
-    const url = new URL(definition.url!);
+    const url = new URL(interpolateEnvVars(definition.url!));
     
     // Build headers first (including any bearer token)
     const headers = resolveHeaders(definition.headers) ?? {};
@@ -174,7 +175,7 @@ export class McpServerManager {
       };
       authProvider = new McpOAuthProvider(
         serverName,
-        definition.url!,
+        url.toString(),
         oauthConfig,
         {
           onRedirect: async (_authUrl) => {
@@ -347,10 +348,7 @@ function resolveEnv(env?: Record<string, string>): Record<string, string> {
   if (!env) return resolved;
   
   for (const [key, value] of Object.entries(env)) {
-    // Support ${VAR} and $env:VAR interpolation
-    resolved[key] = value
-      .replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "")
-      .replace(/\$env:(\w+)/g, (_, name) => process.env[name] ?? "");
+    resolved[key] = interpolateEnvVars(value);
   }
   
   return resolved;
@@ -364,9 +362,7 @@ function resolveHeaders(headers?: Record<string, string>): Record<string, string
   
   const resolved: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
-    resolved[key] = value
-      .replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "")
-      .replace(/\$env:(\w+)/g, (_, name) => process.env[name] ?? "");
+    resolved[key] = interpolateEnvVars(value);
   }
   return resolved;
 }
